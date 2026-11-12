@@ -1,0 +1,27 @@
+name: Documentation checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify required documentation
+        run: |
+          set -euo pipefail
+          test -s README.md
+          test -s docs/PRODUCT_SPECIFICATION.md
+          test -s docs/ARCHITECTURE.md
+          test -s docs/SECURITY_MODEL.md
+          test -s docs/ANDROID_IMPLEMENTATION.md
+          test -s docs/API_CONTRACT.md
+          test -s docs/DEVELOPMENT.md
+          echo "Required project documentation is present."
