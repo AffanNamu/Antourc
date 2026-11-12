@@ -1,0 +1,30 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+*.lock
+
+# Android / Gradle
+.gradle/
+**/local.properties
+**/captures/
+**/.cxx/
+**/.externalNativeBuild/
+**/key.properties
+*.jks
+*.keystore
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
+!.env.example
