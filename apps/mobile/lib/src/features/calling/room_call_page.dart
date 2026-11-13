@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -42,7 +44,7 @@ class _RoomCallPageState extends State<RoomCallPage> {
   @override
   void dispose() {
     _session.removeListener(_refresh);
-    _session.dispose();
+    unawaited(_session.close());
     super.dispose();
   }
 
