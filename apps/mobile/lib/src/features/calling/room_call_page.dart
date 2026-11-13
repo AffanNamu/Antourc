@@ -407,10 +407,14 @@ class _ParticipantTileState extends State<_ParticipantTile> {
                               Offset? normalize(Offset position) {
                                 final width = constraints.maxWidth;
                                 final height = constraints.maxHeight;
-                                if (width <= 0 || height <= 0) return null;
+                                if (width <= 0 || height <= 0) {
+                                  return null;
+                                }
                                 final sourceWidth = screenDimensions?.width.toDouble() ?? width;
                                 final sourceHeight = screenDimensions?.height.toDouble() ?? height;
-                                if (sourceWidth <= 0 || sourceHeight <= 0) return null;
+                                if (sourceWidth <= 0 || sourceHeight <= 0) {
+                                  return null;
+                                }
                                 final sourceAspect = sourceWidth / sourceHeight;
                                 final boxAspect = width / height;
                                 final contentWidth = boxAspect > sourceAspect ? height * sourceAspect : width;
