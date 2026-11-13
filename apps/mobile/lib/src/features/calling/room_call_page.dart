@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -145,13 +147,14 @@ class _RoomCallPageState extends State<RoomCallPage> {
                     active: false,
                     destructive: true,
                     onPressed: () async {
+                      final navigator = Navigator.of(context);
                       await _session.disconnect();
                       try {
                         await widget.onCallEnded?.call();
                       } catch (_) {
                         // Local media is already stopped; server cleanup can expire the call.
                       }
-                      if (mounted) Navigator.of(context).pop();
+                      navigator.pop();
                     },
                   ),
                 ],
