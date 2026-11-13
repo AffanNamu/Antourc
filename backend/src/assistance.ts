@@ -40,7 +40,7 @@ export async function registerAssistanceRoutes(app: FastifyInstance): Promise<vo
     const result = await db.query(
       `INSERT INTO assistance_sessions(call_id, host_id, helper_id, status)
        VALUES ($1, $2, $3, 'active')
-       RETURNING id, call_id, status, created_at`,
+       RETURNING id, call_id, host_id, helper_id, status, created_at`,
       [callId.data, request.user.sub, helperId],
     );
     return reply.code(201).send({ session: result.rows[0] });
