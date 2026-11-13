@@ -257,7 +257,7 @@ class AssistanceSessionController extends ChangeNotifier {
       if (payload['sessionId'] != current.session.id) return;
       final sequence = (payload['sequence'] as num?)?.toInt();
       if (sequence == null || sequence < 1) return;
-      final sender = event.participantIdentity;
+      final sender = (event.participant?.identity ?? '');
 
       switch (payload['type']) {
         case 'tap':
