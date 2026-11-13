@@ -176,10 +176,10 @@ class _RoomCallPageState extends State<RoomCallPage> {
   }
 }
 
-class _ParticipantTile<T extends TrackPublication<dynamic>> extends StatelessWidget {
+class _ParticipantTile extends StatelessWidget {
   const _ParticipantTile({required this.participant, required this.label});
 
-  final Participant<T> participant;
+  final dynamic participant;
   final String label;
 
   @override
