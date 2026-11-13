@@ -33,7 +33,9 @@ class AssistLinkApiClient {
 
   bool get isConfigured {
     final uri = Uri.tryParse(baseUrl);
-    return uri != null && {'https', 'http'}.contains(uri.scheme) && uri.host.isNotEmpty;
+    if (uri == null || uri.host.isEmpty) return false;
+    return uri.scheme == 'https' ||
+        (uri.scheme == 'http' && (uri.host == 'localhost' || uri.host == '127.0.0.1'));
   }
 
   Future<Map<String, dynamic>?> currentUser() async {
