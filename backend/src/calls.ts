@@ -146,6 +146,17 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       [callId.data, request.user.sub],
     );
     if (!result.rowCount) return reply.code(404).send({ error: 'call_not_available' });
-    return reply.send({ call: result.rows[0] });
+    await db.query(
+      `WITH ended_sessions AS (
+         UPDATE assistance_sessions SET status = 'ended', ended_at = now()
+         WHERE call_id = $1 AND status = 'active'
+         RETURNING id
+       )
+       UPDATE control_requests SET status = 'revoked', revoked_at = now()
+       WHERE session_id IN (SELECT id FROM ended_sessions)
+         AND status IN ('pending', 'approved')`,
+      [callId.data],
+    );
+    return reply.send({ call: result.rows[0], assistanceRevoked: true });
   });
 }
