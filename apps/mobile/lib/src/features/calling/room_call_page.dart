@@ -82,8 +82,11 @@ class _RoomCallPageState extends State<RoomCallPage> {
   }
 
   Future<void> _stopScreenShare() async {
-    await _session.stopScreenShare();
-    await _assistance?.endHostSession();
+    try {
+      await _session.stopScreenShare();
+    } finally {
+      await _assistance?.endHostSession();
+    }
   }
 
   Future<void> _approveControl() async {
