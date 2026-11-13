@@ -22,4 +22,11 @@ const schema = z.object({
   SMTP_FROM: z.string().default('AssistLink <no-reply@example.com>'),
 });
 
-export const env = schema.parse(process.env);
+const parsed = schema.parse(process.env);
+const liveKitProtocol = new URL(parsed.LIVEKIT_URL).protocol;
+if (liveKitProtocol !== 'wss:' &&
+    !(parsed.NODE_ENV !== 'production' && liveKitProtocol === 'ws:')) {
+  throw new Error('LIVEKIT_URL must use wss:// in production (ws:// is allowed only for local development).');
+}
+
+export const env = parsed;
