@@ -51,9 +51,13 @@ class _RoomCallPageState extends State<RoomCallPage> {
   @override
   Widget build(BuildContext context) {
     final room = _session.room;
-    final participants = <Participant>[
-      if (room != null) room.localParticipant,
-      if (room != null) ...room.remoteParticipants.values,
+    final localParticipant = room?.localParticipant;
+    final participantTiles = <Widget>[
+      if (localParticipant != null)
+        _ParticipantTile(participant: localParticipant, label: 'You'),
+      if (room != null)
+        for (final remote in room.remoteParticipants.values)
+          _ParticipantTile(participant: remote, label: remote.name),
     ];
 
     return Scaffold(
@@ -84,21 +88,15 @@ class _RoomCallPageState extends State<RoomCallPage> {
                   ? const Center(child: CircularProgressIndicator())
                   : _session.failure != null
                       ? _CallError(message: _session.failure!, onRetry: _connect)
-                      : participants.isEmpty
+                      : participantTiles.isEmpty
                           ? const Center(child: Text('Waiting for call connection…'))
-                          : GridView.builder(
+                          : GridView.count(
                               padding: const EdgeInsets.all(12),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: participants.length > 1 ? 2 : 1,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                                childAspectRatio: participants.length > 1 ? 0.72 : 0.9,
-                              ),
-                              itemCount: participants.length,
-                              itemBuilder: (context, index) => _ParticipantTile(
-                                participant: participants[index],
-                                isLocal: index == 0,
-                              ),
+                              crossAxisCount: participantTiles.length > 1 ? 2 : 1,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: participantTiles.length > 1 ? 0.72 : 0.9,
+                              children: participantTiles,
                             ),
             ),
             if (_session.sharingScreen)
@@ -159,22 +157,23 @@ class _RoomCallPageState extends State<RoomCallPage> {
   }
 
   Future<void> _runAction(Future<void> Function() action) async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await action();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))),
       );
     }
   }
 }
 
-class _ParticipantTile extends StatelessWidget {
-  const _ParticipantTile({required this.participant, required this.isLocal});
+class _ParticipantTile<T extends TrackPublication<dynamic>> extends StatelessWidget {
+  const _ParticipantTile({required this.participant, required this.label});
 
-  final Participant participant;
-  final bool isLocal;
+  final Participant<T> participant;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -183,12 +182,12 @@ class _ParticipantTile extends StatelessWidget {
       builder: (context, _) {
         VideoTrack? videoTrack;
         for (final publication in participant.videoTrackPublications) {
-          if (publication.subscribed && !publication.muted && publication.track != null) {
-            videoTrack = publication.track;
+          final candidate = publication.track;
+          if (publication.subscribed && !publication.muted && candidate is VideoTrack) {
+            videoTrack = candidate;
             break;
           }
         }
-
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: Stack(
@@ -212,10 +211,7 @@ class _ParticipantTile extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: Text(
-                      isLocal ? 'You' : participant.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                    child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
               ),
