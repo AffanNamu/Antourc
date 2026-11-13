@@ -36,6 +36,7 @@ class _RoomCallPageState extends State<RoomCallPage> {
   late final LiveKitCallSession _session;
   AssistanceSessionController? _assistance;
   dynamic _roomListener;
+  bool _ending = false;
 
   @override
   void initState() {
@@ -59,6 +60,12 @@ class _RoomCallPageState extends State<RoomCallPage> {
         ..on<DataReceivedEvent>((event) {
           final controller = _assistance;
           if (controller != null) unawaited(controller.handleDataReceived(event));
+        })
+        ..on<ParticipantDisconnectedEvent>((_) {
+          unawaited(_finishCall());
+        })
+        ..on<RoomDisconnectedEvent>((_) {
+          unawaited(_finishCall());
         });
       _assistance!.startAsHelper();
       if (mounted) setState(() {});
@@ -194,6 +201,10 @@ class _RoomCallPageState extends State<RoomCallPage> {
     _session.removeListener(_refresh);
     _assistance?.removeListener(_refresh);
     _roomListener?.dispose();
+    if (!_ending) {
+      _ending = true;
+      unawaited(widget.api.endCall(widget.callId).catchError((_) {}));
+    }
     final assistance = _assistance;
     if (assistance != null) unawaited(assistance.close());
     unawaited(_session.close());
@@ -307,18 +318,7 @@ class _RoomCallPageState extends State<RoomCallPage> {
                     label: 'End call',
                     active: false,
                     destructive: true,
-                    onPressed: () async {
-                      final navigator = Navigator.of(context);
-                      await _session.disconnect();
-                      final assistance = _assistance;
-                      if (assistance != null) await assistance.close();
-                      try {
-                        await widget.onCallEnded?.call();
-                      } catch (_) {
-                        // Local media is already stopped; server cleanup can expire the call.
-                      }
-                      navigator.pop();
-                    },
+                    onPressed: _finishCall,
                   ),
                 ],
               ),
@@ -327,6 +327,25 @@ class _RoomCallPageState extends State<RoomCallPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _finishCall() async {
+    if (_ending) return;
+    _ending = true;
+    final navigator = Navigator.of(context);
+    try {
+      await _session.disconnect();
+    } catch (_) {
+      // Disconnect still releases the room and local media in its finally block.
+    }
+    final assistance = _assistance;
+    if (assistance != null) await assistance.close();
+    try {
+      await widget.onCallEnded?.call();
+    } catch (_) {
+      // The local media session is already stopped.
+    }
+    if (mounted) navigator.pop();
   }
 
   Future<void> _runAction(Future<void> Function() action) async {
