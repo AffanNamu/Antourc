@@ -4,8 +4,6 @@ import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
 import 'package:livekit_client/livekit_client.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-/// Credentials are issued by the authenticated AssistLink backend.
-/// Never construct these from user-entered tokens or ship a LiveKit API secret.
 class LiveKitConnectionCredentials {
   const LiveKitConnectionCredentials({
     required this.serverUrl,
@@ -28,7 +26,7 @@ class LiveKitConnectionCredentials {
 }
 
 /// Owns one LiveKit room and the local media lifecycle for a one-to-one call.
-/// The backend must authorize room membership and issue short-lived tokens.
+/// Tokens must be issued by the authenticated AssistLink backend.
 class LiveKitCallSession extends ChangeNotifier {
   LiveKitCallSession(this.credentials);
 
@@ -39,8 +37,8 @@ class LiveKitCallSession extends ChangeNotifier {
   bool _sharingScreen = false;
   bool _microphoneEnabled = false;
   bool _cameraEnabled = false;
-  String? _failure;
   bool _closed = false;
+  String? _failure;
 
   Room? get room => _room;
   bool get connecting => _connecting;
@@ -55,32 +53,26 @@ class LiveKitCallSession extends ChangeNotifier {
     _connecting = true;
     _failure = null;
     notifyListeners();
-
     try {
       credentials.validate();
       final camera = await Permission.camera.request();
       final microphone = await Permission.microphone.request();
-
       final room = Room(
-        roomOptions: const RoomOptions(
-          adaptiveStream: true,
-          dynacast: true,
-        ),
+        roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
       );
       _room = room;
       room.addListener(_onRoomChanged);
-
       await room.connect(credentials.serverUrl, credentials.accessToken);
 
+      final local = _requireLocalParticipant();
       if (microphone.isGranted) {
-        await room.localParticipant.setMicrophoneEnabled(true);
+        await local.setMicrophoneEnabled(true);
         _microphoneEnabled = true;
       }
       if (camera.isGranted) {
-        await room.localParticipant.setCameraEnabled(true);
+        await local.setCameraEnabled(true);
         _cameraEnabled = true;
       }
-
       _connected = true;
     } catch (error) {
       _failure = _safeMessage(error);
@@ -93,46 +85,38 @@ class LiveKitCallSession extends ChangeNotifier {
   }
 
   Future<void> setMicrophoneEnabled(bool enabled) async {
-    final room = _requireRoom();
+    final local = _requireLocalParticipant();
     if (_microphoneEnabled == enabled) return;
     if (enabled) {
       final permission = await Permission.microphone.request();
-      if (!permission.isGranted) {
-        throw StateError('Microphone permission was not granted.');
-      }
+      if (!permission.isGranted) throw StateError('Microphone permission was not granted.');
     }
-    await room.localParticipant.setMicrophoneEnabled(enabled);
+    await local.setMicrophoneEnabled(enabled);
     _microphoneEnabled = enabled;
     notifyListeners();
   }
 
   Future<void> setCameraEnabled(bool enabled) async {
-    final room = _requireRoom();
+    final local = _requireLocalParticipant();
     if (_cameraEnabled == enabled) return;
     if (enabled) {
       final permission = await Permission.camera.request();
-      if (!permission.isGranted) {
-        throw StateError('Camera permission was not granted.');
-      }
+      if (!permission.isGranted) throw StateError('Camera permission was not granted.');
     }
-    await room.localParticipant.setCameraEnabled(enabled);
+    await local.setCameraEnabled(enabled);
     _cameraEnabled = enabled;
     notifyListeners();
   }
 
-  /// Requests Android's OS capture consent before publishing a screen track.
-  /// A foreground notification remains visible while capture is active.
+  /// Uses Android's system capture-consent dialog before publishing screen media.
   Future<void> startScreenShare() async {
-    final room = _requireRoom();
+    final local = _requireLocalParticipant();
     if (_sharingScreen) return;
     if (defaultTargetPlatform != TargetPlatform.android) {
       throw UnsupportedError('Screen sharing is currently implemented for Android only.');
     }
-
     final approvedBySystem = await Helper.requestCapturePermission();
-    if (!approvedBySystem) {
-      throw StateError('Android screen-capture permission was declined.');
-    }
+    if (!approvedBySystem) throw StateError('Android screen-capture permission was declined.');
 
     final initialized = await FlutterBackground.initialize(
       androidConfig: const FlutterBackgroundAndroidConfig(
@@ -142,17 +126,13 @@ class LiveKitCallSession extends ChangeNotifier {
         enableWifiLock: true,
       ),
     );
-    if (!initialized) {
-      throw StateError('Could not initialize the screen-sharing foreground service.');
-    }
+    if (!initialized) throw StateError('Could not initialize the screen-sharing foreground service.');
 
     final foregroundStarted = await FlutterBackground.enableBackgroundExecution();
-    if (!foregroundStarted) {
-      throw StateError('Android did not start the screen-sharing foreground service.');
-    }
+    if (!foregroundStarted) throw StateError('Android did not start the screen-sharing foreground service.');
 
     try {
-      await room.localParticipant.setScreenShareEnabled(true);
+      await local.setScreenShareEnabled(true);
       _sharingScreen = true;
       notifyListeners();
     } catch (_) {
@@ -163,9 +143,10 @@ class LiveKitCallSession extends ChangeNotifier {
 
   Future<void> stopScreenShare() async {
     final room = _room;
-    if (room == null || !_sharingScreen) return;
+    final local = room?.localParticipant;
+    if (local == null || !_sharingScreen) return;
     try {
-      await room.localParticipant.setScreenShareEnabled(false);
+      await local.setScreenShareEnabled(false);
     } finally {
       _sharingScreen = false;
       if (FlutterBackground.isBackgroundExecutionEnabled) {
@@ -194,12 +175,12 @@ class LiveKitCallSession extends ChangeNotifier {
     super.dispose();
   }
 
-  Room _requireRoom() {
-    final current = _room;
-    if (!_connected || current == null) {
+  LocalParticipant _requireLocalParticipant() {
+    final local = _room?.localParticipant;
+    if (!_connected && !_connecting || local == null) {
       throw StateError('The call is not connected.');
     }
-    return current;
+    return local;
   }
 
   void _onRoomChanged() {
