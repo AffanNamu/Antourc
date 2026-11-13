@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
 import rateLimit from '@fastify/rate-limit';
+import { registerAssistanceRoutes } from './assistance.js';
 import { registerAuthRoutes } from './auth.js';
 import { registerCallRoutes } from './calls.js';
 import { db } from './db.js';
@@ -45,6 +46,7 @@ app.get('/health/ready', async (_request, reply) => {
 
 await registerAuthRoutes(app);
 await registerCallRoutes(app);
+await registerAssistanceRoutes(app);
 
 app.setErrorHandler((error, request, reply) => {
   request.log.error({ err: error }, 'Unhandled request error');
