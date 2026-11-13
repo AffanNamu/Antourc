@@ -1,31 +1,38 @@
 # AssistLink
 
-AssistLink is an Android-first, consent-based remote assistance application. Two people can make an internet video call, share a device screen with explicit Android consent, and request narrowly-scoped assistance where Android and device policy permit it.
+AssistLink is an Android-first, consent-based remote assistance application. Two people can make an internet video call, share a device screen with Android's system consent, and request narrowly scoped remote taps/swipes.
 
-> **Status:** foundation in progress. No calling, screen-sharing or remote-control feature should be described as production-ready until it has passed real-device tests.
+> **Status:** active development. The repository now contains a Flutter client, authenticated Fastify/PostgreSQL backend, LiveKit room integration, Android MediaProjection setup and a consent-gated AccessibilityService gesture executor. It is **not yet production-ready**: CI and real-device acceptance are still in progress, the backend/LiveKit/SMTP services must be deployed and configured, and Play policy review is required before public distribution.
 
-## Goals
+## Implemented foundations
 
-- One application for both participants; either can call or assist.
-- One-to-one internet audio/video calling.
-- Host-initiated screen sharing using Android's system consent flow.
-- Distinct, explicit and revocable remote-assistance consent.
-- Visible host-side session state and immediate stop.
-- No covert capture, unattended access or security-boundary bypass.
+- Email/password accounts with email verification and rotating refresh tokens.
+- Authenticated one-to-one call signaling and short-lived, room-scoped LiveKit credentials.
+- Flutter call UI with camera/microphone controls and participant video rendering.
+- Android system screen-capture permission flow and foreground service integration.
+- Assistance sessions with separate helper request, host approval, rejection and revocation.
+- Android gesture executor restricted to approved tap/swipe commands, a specific helper identity, monotonic command sequence and expiring local grant.
+- In-app AccessibilityService disclosure and affirmative acknowledgement.
+- CI for Flutter analysis/tests, Android debug APK compilation, backend typecheck/build and repository documentation.
 
-## Planned stack
+## Architecture
 
-Flutter/Dart client; Kotlin Android integration; LiveKit/WebRTC media; authenticated backend and control signaling; PostgreSQL persistence.
-
-## Repository
-
-- `apps/mobile`: Flutter client.
-- `backend`: API and service implementation.
-- `docs`: product, architecture, security and Android implementation requirements.
+- `apps/mobile`: Flutter Android client and Kotlin platform integration.
+- `backend`: Fastify API, PostgreSQL migrations, authentication, call and assistance authorization.
+- `docs`: product, architecture, security and Android platform requirements.
 - `.github/workflows`: CI.
 
-See [Development Guide](docs/DEVELOPMENT.md).
+## Important constraints
 
-## Safety and platform constraints
+AssistLink does not use the AccessibilityService as a screen reader and does not retrieve window text. It listens to limited app/window and password-focus events to block selected system surfaces, and dispatches only host-approved taps/swipes. This cannot identify every sensitive screen. Android lock state, screen-off state, password focus and selected system/permission surfaces are blocked, but users should approve only trusted helpers.
 
-Remote interaction is a separately gated capability. Android AccessibilityService is not unrestricted privileged input injection and use is subject to Android limitations and Google Play policy. We will not misclassify the app as an accessibility tool. Protected system surfaces, lock screens, passwords/PINs, biometrics, banking/payment confirmations and permission prompts remain host-only. Public Play distribution is not assumed until policy eligibility is reviewed.
+Google Play distribution requires the Accessibility API declaration, prominent disclosure/affirmative consent and review. AssistLink must not set `isAccessibilityTool=true` because it is not a disability-support tool. It must never bypass Android security/privacy controls or automate actions autonomously.
+
+## Local development
+
+- Mobile: [apps/mobile/README.md](apps/mobile/README.md)
+- Backend: [backend/README.md](backend/README.md)
+- System design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Security: [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md)
+
+No real-device or production deployment success is claimed until tested and verified.
