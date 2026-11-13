@@ -87,6 +87,15 @@ class AssistanceSessionController extends ChangeNotifier {
       _snapshot = next;
       if (next == null || next.session.status != 'active') {
         _pollTimer?.cancel();
+      } else if (next.session.hostId == currentUserId) {
+        final local = room.localParticipant;
+        final sharing = local?.videoTrackPublications.any(
+              (publication) => publication.isScreenShare && publication.track != null,
+            ) ?? false;
+        if (!sharing) {
+          await endHostSession();
+          return;
+        }
       }
       notifyListeners();
     } catch (error) {
