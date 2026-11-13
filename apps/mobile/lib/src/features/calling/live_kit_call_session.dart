@@ -15,9 +15,11 @@ class LiveKitConnectionCredentials {
 
   void validate() {
     final uri = Uri.tryParse(serverUrl);
-    if (uri == null || !{'wss', 'ws', 'https', 'http'}.contains(uri.scheme) ||
-        uri.host.isEmpty) {
-      throw ArgumentError.value(serverUrl, 'serverUrl', 'Must be a valid LiveKit URL.');
+    final secure = uri?.scheme == 'wss';
+    final localDevelopment = uri?.scheme == 'ws' &&
+        (uri?.host == 'localhost' || uri?.host == '127.0.0.1');
+    if (uri == null || (!secure && !localDevelopment) || uri.host.isEmpty) {
+      throw ArgumentError.value(serverUrl, 'serverUrl', 'LiveKit must use wss, except localhost development.');
     }
     if (accessToken.trim().isEmpty) {
       throw ArgumentError.value(accessToken, 'accessToken', 'A server-issued token is required.');
@@ -177,7 +179,7 @@ class LiveKitCallSession extends ChangeNotifier {
 
   LocalParticipant _requireLocalParticipant() {
     final local = _room?.localParticipant;
-    if (!_connected && !_connecting || local == null) {
+    if ((!_connected && !_connecting) || local == null) {
       throw StateError('The call is not connected.');
     }
     return local;
