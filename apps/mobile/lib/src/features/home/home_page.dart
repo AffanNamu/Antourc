@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../data/assistlink_api_client.dart';
 import '../auth/auth_page.dart';
 import '../calling/call_connection_page.dart';
+import '../assistance/accessibility_disclosure_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -278,6 +279,14 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AccessibilityDisclosurePage()),
+                  ),
+                  icon: const Icon(Icons.touch_app_rounded),
+                  label: const Text('Set up remote assistance on this phone'),
                 ),
               ],
             ),
