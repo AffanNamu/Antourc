@@ -46,6 +46,30 @@ export async function registerAssistanceRoutes(app: FastifyInstance): Promise<vo
     return reply.code(201).send({ session: result.rows[0] });
   });
 
+  app.get('/v1/calls/:callId/assistance-sessions', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const callId = uuidSchema.safeParse((request.params as { callId?: string }).callId);
+    if (!callId.success) return reply.code(400).send({ error: 'invalid_call_id' });
+    const membership = await db.query(
+      'SELECT id FROM calls WHERE id = $1 AND (caller_id = $2 OR callee_id = $2)',
+      [callId.data, request.user.sub],
+    );
+    if (!membership.rowCount) return reply.code(404).send({ error: 'call_not_found' });
+    const result = await db.query(
+      `SELECT id, call_id, host_id, helper_id, status, created_at
+       FROM assistance_sessions WHERE call_id = $1 AND status = 'active'
+       ORDER BY created_at DESC LIMIT 1`,
+      [callId.data],
+    );
+    const session = result.rows[0];
+    if (!session) return reply.send({ session: null, controlRequests: [] });
+    const requests = await db.query(
+      `SELECT id, status, capabilities, created_at, expires_at, approved_at, revoked_at
+       FROM control_requests WHERE session_id = $1 ORDER BY created_at DESC LIMIT 10`,
+      [session.id],
+    );
+    return reply.send({ session, controlRequests: requests.rows });
+  });
+
   app.get('/v1/assistance-sessions/:sessionId', { preHandler: [app.authenticate] }, async (request, reply) => {
     const sessionId = uuidSchema.safeParse((request.params as { sessionId?: string }).sessionId);
     if (!sessionId.success) return reply.code(400).send({ error: 'invalid_session_id' });
@@ -96,6 +120,23 @@ export async function registerAssistanceRoutes(app: FastifyInstance): Promise<vo
     );
     if (!result.rowCount) return reply.code(404).send({ error: 'request_not_approvable' });
     return reply.send({ controlGrant: result.rows[0] });
+  });
+
+  app.post('/v1/control-requests/:requestId/reject', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const requestId = uuidSchema.safeParse((request.params as { requestId?: string }).requestId);
+    if (!requestId.success) return reply.code(400).send({ error: 'invalid_request_id' });
+    const result = await db.query(
+      `UPDATE control_requests cr
+       SET status = 'rejected'
+       FROM assistance_sessions s
+       WHERE cr.id = $1 AND cr.session_id = s.id
+         AND s.host_id = $2 AND s.status = 'active'
+         AND cr.status = 'pending' AND cr.expires_at > now()
+       RETURNING cr.id, cr.session_id, cr.status`,
+      [requestId.data, request.user.sub],
+    );
+    if (!result.rowCount) return reply.code(404).send({ error: 'request_not_rejectable' });
+    return reply.send({ controlRequest: result.rows[0] });
   });
 
   app.post('/v1/control-requests/:requestId/revoke', { preHandler: [app.authenticate] }, async (request, reply) => {
