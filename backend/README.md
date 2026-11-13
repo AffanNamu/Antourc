@@ -34,17 +34,19 @@ Registration is disabled until SMTP is configured. Accounts must verify their em
 
 Every call endpoint requires a bearer access token. LiveKit room credentials are issued only to a verified participant after the call is accepted. Tokens expire after five minutes and are room-scoped.
 
-## Assistance consent API
+## Assistance and remote control
 
-- `POST /v1/calls/:callId/assistance-sessions` — the participant who is sharing their screen becomes the host.
-- `GET /v1/assistance-sessions/:sessionId` — either participant can inspect the session.
-- `POST /v1/assistance-sessions/:sessionId/control-requests` — helper requests only the explicitly listed gesture capabilities.
-- `POST /v1/control-requests/:requestId/approve` — host approves a pending request; the grant expires after five minutes.
-- `POST /v1/control-requests/:requestId/revoke` — host revokes an active grant.
-- `POST /v1/assistance-sessions/:sessionId/end` — host ends assistance and revokes outstanding grants.
+- `POST /v1/calls/:callId/assistance-sessions` — create host/helper session when the host starts screen sharing.
+- `GET /v1/calls/:callId/assistance-sessions` — participants read active session and request state.
+- `GET /v1/assistance-sessions/:sessionId` — inspect session.
+- `POST /v1/assistance-sessions/:sessionId/control-requests` — helper requests tap/swipe.
+- `POST /v1/control-requests/:requestId/approve` — host approves; grant expires after five minutes.
+- `POST /v1/control-requests/:requestId/reject` — host rejects.
+- `POST /v1/control-requests/:requestId/revoke` — host revokes.
+- `POST /v1/assistance-sessions/:sessionId/end` — host ends and revokes outstanding requests.
 
-These endpoints persist authorization state. They do not themselves inject touch events; the Android host must independently verify the active grant and local consent for every gesture before any command is executed.
+The API records authorization state only. The Android host also requires a local, expiring consent grant and checks each incoming LiveKit gesture command before dispatch.
 
-## Production requirements still outstanding
+## Production requirements outstanding
 
-Configure TLS termination, managed PostgreSQL backups, SMTP deliverability, LiveKit/TURN capacity, monitoring/alerting, abuse reporting, account recovery, push delivery for incoming calls, rate-limit persistence and independent security review before public launch. The internal client milestone uses incoming-call polling until push delivery is implemented.
+Configure TLS termination, managed PostgreSQL backups, SMTP deliverability, LiveKit/TURN capacity, monitoring/alerting, abuse reporting, account recovery, incoming-call push delivery, persistent rate limiting and independent security review before public launch.
