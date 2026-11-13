@@ -104,6 +104,7 @@ class AssistanceSessionController extends ChangeNotifier {
     notifyListeners();
     try {
       await api.requestControl(current.session.id);
+      _busy = false;
       await refresh();
     } catch (error) {
       _notice = _errorMessage(error);
@@ -143,6 +144,7 @@ class AssistanceSessionController extends ChangeNotifier {
         expiresAtMillis: expiresAt.millisecondsSinceEpoch,
         capabilities: capabilities,
       );
+      _busy = false;
       await refresh();
     } catch (error) {
       _notice = _errorMessage(error);
@@ -260,6 +262,7 @@ class AssistanceSessionController extends ChangeNotifier {
             x: x,
             y: y,
           );
+          break;
         case 'swipe':
           final startX = (payload['startX'] as num?)?.toDouble();
           final startY = (payload['startY'] as num?)?.toDouble();
@@ -277,6 +280,7 @@ class AssistanceSessionController extends ChangeNotifier {
             endY: endY,
             durationMs: duration,
           );
+          break;
       }
     } catch (_) {
       // Malformed or unsupported data packets are ignored.
