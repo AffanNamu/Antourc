@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../platform/remote_assistance_platform.dart';
 
@@ -49,15 +50,15 @@ class _AccessibilityDisclosurePageState extends State<AccessibilityDisclosurePag
                 style: TextStyle(height: 1.5),
               ),
               const SizedBox(height: 16),
-              _DisclosureItem(
+              const _DisclosureItem(
                 title: 'What the service can access',
                 body: 'It receives app/window change events and whether a password field has focus so AssistLink can block gestures on known protected system surfaces. It does not retrieve window text, read passwords, or inspect app content.',
               ),
-              _DisclosureItem(
+              const _DisclosureItem(
                 title: 'How it is used and shared',
                 body: 'Only the helper identity approved for the current session can send tap and swipe commands. Commands are relayed through the encrypted call data channel and are not stored as screen content.',
               ),
-              _DisclosureItem(
+              const _DisclosureItem(
                 title: 'Your control',
                 body: 'Android requires you to enable this service manually in Settings. Screen sharing and remote assistance require separate approvals. You can revoke assistance or stop screen sharing at any time.',
               ),
