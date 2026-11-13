@@ -2,19 +2,16 @@ package com.assistlink.app
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.app.KeyguardManager
 import android.graphics.Path
 import android.os.PowerManager
-import android.view.accessibility.AccessibilityEvent
-import android.view.KeyEvent
-import android.app.KeyguardManager
 import android.util.DisplayMetrics
 import android.view.WindowManager
+import android.view.accessibility.AccessibilityEvent
 
 /**
  * Narrow gesture executor for an explicitly approved, time-limited live support session.
- *
- * It does not read window text, inspect view hierarchies, capture credentials, or
- * execute scripts. Every command is checked against the locally stored host grant.
+ * It does not read window text, inspect view hierarchies, capture credentials, or execute scripts.
  */
 class AssistLinkAccessibilityService : AccessibilityService() {
     companion object {
@@ -30,7 +27,8 @@ class AssistLinkAccessibilityService : AccessibilityService() {
         private const val KEY_SEQUENCE = "last_sequence"
 
         fun clearGrant(context: android.content.Context) {
-            context.getSharedPreferences(PREFS, MODE_PRIVATE).edit().clear().commit()
+            context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
+                .edit().clear().commit()
         }
 
         fun saveGrant(
@@ -40,7 +38,7 @@ class AssistLinkAccessibilityService : AccessibilityService() {
             expiresAt: Long,
             capabilities: Set<String>,
         ) {
-            context.getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE).edit()
                 .putString(KEY_SESSION, sessionId)
                 .putString(KEY_HELPER, helperIdentity)
                 .putLong(KEY_EXPIRY, expiresAt)
@@ -50,7 +48,7 @@ class AssistLinkAccessibilityService : AccessibilityService() {
         }
 
         fun hasGrant(context: android.content.Context): Boolean {
-            val prefs = context.getSharedPreferences(PREFS, MODE_PRIVATE)
+            val prefs = context.getSharedPreferences(PREFS, android.content.Context.MODE_PRIVATE)
             return !prefs.getString(KEY_SESSION, null).isNullOrBlank() &&
                 prefs.getLong(KEY_EXPIRY, 0L) > System.currentTimeMillis()
         }
@@ -74,14 +72,10 @@ class AssistLinkAccessibilityService : AccessibilityService() {
             packageName == "com.google.android.permissioncontroller" ||
             packageName == "com.android.packageinstaller" ||
             packageName == "com.google.android.packageinstaller"
-
-        // A focused password field blocks remote gestures until focus leaves it.
         blockedForeground = protectedSystemPackage || event.isPassword
     }
 
-    override fun onInterrupt() {
-        // Do not revoke the user's grant just because Android interrupts event delivery.
-    }
+    override fun onInterrupt() = Unit
 
     override fun onDestroy() {
         if (activeService === this) activeService = null
@@ -120,8 +114,7 @@ class AssistLinkAccessibilityService : AccessibilityService() {
     ): Boolean {
         if (!validateCommand(sessionId, senderIdentity, sequence, "swipe")) return false
         val values = listOf(normalizedStartX, normalizedStartY, normalizedEndX, normalizedEndY)
-        if (values.any { it !in 0.0..1.0 }) return false
-        if (durationMs !in 120L..1000L) return false
+        if (values.any { it !in 0.0..1.0 } || durationMs !in 120L..1000L) return false
         val metrics = displayMetrics() ?: return false
         val path = Path().apply {
             moveTo(normalizedStartX * (metrics.widthPixels - 1), normalizedStartY * (metrics.heightPixels - 1))
