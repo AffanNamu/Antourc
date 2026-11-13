@@ -4,7 +4,7 @@ import { db } from './db.js';
 
 const uuidSchema = z.string().uuid();
 const controlRequestSchema = z.object({
-  capabilities: z.array(z.enum(['tap', 'swipe', 'global_navigation'])).min(1).max(3).default(['tap', 'swipe']),
+  capabilities: z.array(z.enum(['tap', 'swipe'])).min(1).max(2).default(['tap', 'swipe']),
 });
 
 async function getSession(sessionId: string, userId: string) {
