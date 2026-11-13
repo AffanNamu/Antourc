@@ -40,10 +40,22 @@ export async function registerAssistanceRoutes(app: FastifyInstance): Promise<vo
     const result = await db.query(
       `INSERT INTO assistance_sessions(call_id, host_id, helper_id, status)
        VALUES ($1, $2, $3, 'active')
+       ON CONFLICT (call_id) WHERE status = 'active' DO NOTHING
        RETURNING id, call_id, host_id, helper_id, status, created_at`,
       [callId.data, request.user.sub, helperId],
     );
-    return reply.code(201).send({ session: result.rows[0] });
+    if (result.rowCount) return reply.code(201).send({ session: result.rows[0] });
+
+    const existing = await db.query(
+      `SELECT id, call_id, host_id, helper_id, status, created_at
+       FROM assistance_sessions WHERE call_id = $1 AND status = 'active'`,
+      [callId.data],
+    );
+    const session = existing.rows[0];
+    if (!session || session.host_id !== request.user.sub) {
+      return reply.code(409).send({ error: 'another_participant_is_hosting_assistance' });
+    }
+    return reply.send({ session });
   });
 
   app.get('/v1/calls/:callId/assistance-sessions', { preHandler: [app.authenticate] }, async (request, reply) => {
