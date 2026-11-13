@@ -54,7 +54,9 @@ class AssistanceSessionController extends ChangeNotifier {
       latestRequest!.expiresAt.isAfter(DateTime.now());
 
   Future<void> startAsHost() async {
-    if (_busy || _closed) return;
+    if (_busy || _closed) {
+      return;
+    }
     _busy = true;
     _notice = null;
     notifyListeners();
@@ -80,7 +82,9 @@ class AssistanceSessionController extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
-    if (_closed || _busy) return;
+    if (_closed || _busy) {
+      return;
+    }
     try {
       final callStatus = await api.callStatus(callId);
       if (callStatus != 'accepted') {
@@ -89,7 +93,9 @@ class AssistanceSessionController extends ChangeNotifier {
         return;
       }
       final next = await api.assistanceSessionForCall(callId);
-      if (_closed) return;
+      if (_closed) {
+        return;
+      }
       _snapshot = next;
       if (next != null && next.session.status != 'active') {
         _pollTimer?.cancel();
@@ -105,7 +111,9 @@ class AssistanceSessionController extends ChangeNotifier {
       }
       notifyListeners();
     } catch (error) {
-      if (error is ApiException && error.statusCode == 404) return;
+      if (error is ApiException && error.statusCode == 404) {
+        return;
+      }
       _notice = _errorMessage(error);
       if (!_closed) notifyListeners();
     }
@@ -113,7 +121,9 @@ class AssistanceSessionController extends ChangeNotifier {
 
   Future<void> requestControl() async {
     final current = _snapshot;
-    if (current == null || !isHelper || _busy) return;
+    if (current == null || !isHelper || _busy) {
+      return;
+    }
     _busy = true;
     _notice = null;
     notifyListeners();
@@ -133,7 +143,9 @@ class AssistanceSessionController extends ChangeNotifier {
   Future<void> approvePendingRequest() async {
     final current = _snapshot;
     final pending = latestRequest;
-    if (current == null || !isHost || pending == null || pending.status != 'pending') return;
+    if (current == null || !isHost || pending == null || pending.status != 'pending') {
+      return;
+    }
 
     final status = await _platform.getStatus();
     if (!status.accessibilityEnabled) {
@@ -172,14 +184,18 @@ class AssistanceSessionController extends ChangeNotifier {
 
   Future<void> rejectPendingRequest() async {
     final pending = latestRequest;
-    if (pending == null || !isHost || pending.status != 'pending') return;
+    if (pending == null || !isHost || pending.status != 'pending') {
+      return;
+    }
     await api.rejectControlRequest(pending.id);
     await refresh();
   }
 
   Future<void> revokeControl() async {
     final pending = latestRequest;
-    if (pending == null || !isHost || pending.status != 'approved') return;
+    if (pending == null || !isHost || pending.status != 'approved') {
+      return;
+    }
     await _platform.revokeControlGrant();
     await api.revokeControlRequest(pending.id);
     await refresh();
@@ -187,7 +203,9 @@ class AssistanceSessionController extends ChangeNotifier {
 
   Future<void> endHostSession() async {
     final current = _snapshot;
-    if (current == null || !isHost) return;
+    if (current == null || !isHost) {
+      return;
+    }
     _pollTimer?.cancel();
     await _platform.revokeControlGrant();
     try {
@@ -200,9 +218,13 @@ class AssistanceSessionController extends ChangeNotifier {
 
   Future<void> sendTap(double x, double y) async {
     final current = _snapshot;
-    if (!controlApproved || current == null) return;
+    if (!controlApproved || current == null) {
+      return;
+    }
     final local = room.localParticipant;
-    if (local == null) return;
+    if (local == null) {
+      return;
+    }
     _commandSequence++;
     final payload = {
       'type': 'tap',
@@ -227,9 +249,13 @@ class AssistanceSessionController extends ChangeNotifier {
     int durationMs = 350,
   }) async {
     final current = _snapshot;
-    if (!controlApproved || current == null) return;
+    if (!controlApproved || current == null) {
+      return;
+    }
     final local = room.localParticipant;
-    if (local == null) return;
+    if (local == null) {
+      return;
+    }
     _commandSequence++;
     final payload = {
       'type': 'swipe',
@@ -251,8 +277,12 @@ class AssistanceSessionController extends ChangeNotifier {
 
   Future<void> handleDataReceived(DataReceivedEvent event) async {
     final current = _snapshot;
-    if (event.topic != controlTopic || current == null || !isHost) return;
-    if ((event.participant?.identity ?? '') != current.session.helperId) return;
+    if (event.topic != controlTopic || current == null || !isHost) {
+      return;
+    }
+    if ((event.participant?.identity ?? '') != current.session.helperId) {
+      return;
+    }
 
     final latest = latestRequest;
     if (latest == null || latest.status != 'approved' ||
@@ -260,16 +290,22 @@ class AssistanceSessionController extends ChangeNotifier {
 
     try {
       final payload = jsonDecode(utf8.decode(event.data)) as Map<String, dynamic>;
-      if (payload['sessionId'] != current.session.id) return;
+      if (payload['sessionId'] != current.session.id) {
+        return;
+      }
       final sequence = (payload['sequence'] as num?)?.toInt();
-      if (sequence == null || sequence < 1) return;
+      if (sequence == null || sequence < 1) {
+        return;
+      }
       final sender = (event.participant?.identity ?? '');
 
       switch (payload['type']) {
         case 'tap':
           final x = (payload['x'] as num?)?.toDouble();
           final y = (payload['y'] as num?)?.toDouble();
-          if (x == null || y == null) return;
+          if (x == null || y == null) {
+            return;
+          }
           await _platform.dispatchTap(
             sessionId: current.session.id,
             senderIdentity: sender,
@@ -284,7 +320,9 @@ class AssistanceSessionController extends ChangeNotifier {
           final endX = (payload['endX'] as num?)?.toDouble();
           final endY = (payload['endY'] as num?)?.toDouble();
           final duration = (payload['durationMs'] as num?)?.toInt();
-          if (startX == null || startY == null || endX == null || endY == null || duration == null) return;
+          if (startX == null || startY == null || endX == null || endY == null || duration == null) {
+            return;
+          }
           await _platform.dispatchSwipe(
             sessionId: current.session.id,
             senderIdentity: sender,
@@ -308,7 +346,9 @@ class AssistanceSessionController extends ChangeNotifier {
   }
 
   Future<void> close() async {
-    if (_closed) return;
+    if (_closed) {
+      return;
+    }
     _closed = true;
     _pollTimer?.cancel();
     if (isHost) {
