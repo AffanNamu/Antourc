@@ -9,6 +9,7 @@ class CallConnectionPage extends StatefulWidget {
   const CallConnectionPage({
     required this.api,
     required this.callId,
+    required this.currentUserId,
     required this.peerLabel,
     required this.isIncoming,
     super.key,
@@ -16,6 +17,7 @@ class CallConnectionPage extends StatefulWidget {
 
   final AssistLinkApiClient api;
   final String callId;
+  final String currentUserId;
   final String peerLabel;
   final bool isIncoming;
 
@@ -63,6 +65,9 @@ class _CallConnectionPageState extends State<CallConnectionPage> {
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => RoomCallPage(
+            api: widget.api,
+            callId: widget.callId,
+            currentUserId: widget.currentUserId,
             credentials: credentials,
             peerLabel: widget.peerLabel,
             onCallEnded: () => widget.api.endCall(widget.callId),
