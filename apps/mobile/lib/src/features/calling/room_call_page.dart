@@ -191,7 +191,7 @@ class _RoomCallPageState extends State<RoomCallPage> {
         detail: 'Tap or swipe directly on the shared screen above to help.',
       );
     }
-    if (latest?.status == 'pending') {
+    if (latest?.status == 'pending' && latest!.expiresAt.isAfter(DateTime.now())) {
       return const _AssistancePanel(
         title: 'Waiting for host approval',
         detail: 'The phone owner must approve before your gestures can be sent.',
