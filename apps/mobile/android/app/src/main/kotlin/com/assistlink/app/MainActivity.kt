@@ -69,43 +69,35 @@ class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
 
-                "dispatchTap" -> {
-                    val args = call.arguments as? Map<*, *>
-                    val accepted = dispatchTap(args)
-                    result.success(accepted)
-                }
-
-                "dispatchSwipe" -> {
-                    val args = call.arguments as? Map<*, *>
-                    val accepted = dispatchSwipe(args)
-                    result.success(accepted)
-                }
-
+                "dispatchTap" -> result.success(dispatchTap(call.arguments as? Map<*, *>))
+                "dispatchSwipe" -> result.success(dispatchSwipe(call.arguments as? Map<*, *>))
                 else -> result.notImplemented()
             }
         }
     }
 
     private fun dispatchTap(args: Map<*, *>?): Boolean {
+        val values = args ?: return false
         val service = AssistLinkAccessibilityService.activeService ?: return false
-        val sessionId = args?.get("sessionId") as? String ?: return false
-        val sender = args["senderIdentity"] as? String ?: return false
-        val sequence = (args["sequence"] as? Number)?.toLong() ?: return false
-        val x = (args["x") as? Number)?.toDouble() ?: return false
-        val y = (args["y") as? Number)?.toDouble() ?: return false
+        val sessionId = values["sessionId"] as? String ?: return false
+        val sender = values["senderIdentity"] as? String ?: return false
+        val sequence = (values["sequence"] as? Number)?.toLong() ?: return false
+        val x = (values["x"] as? Number)?.toDouble() ?: return false
+        val y = (values["y"] as? Number)?.toDouble() ?: return false
         return service.dispatchTap(sessionId, sender, sequence, x, y)
     }
 
     private fun dispatchSwipe(args: Map<*, *>?): Boolean {
+        val values = args ?: return false
         val service = AssistLinkAccessibilityService.activeService ?: return false
-        val sessionId = args?.get("sessionId") as? String ?: return false
-        val sender = args["senderIdentity"] as? String ?: return false
-        val sequence = (args["sequence"] as? Number)?.toLong() ?: return false
-        val startX = (args["startX"] as? Number)?.toDouble() ?: return false
-        val startY = (args["startY"] as? Number)?.toDouble() ?: return false
-        val endX = (args["endX"] as? Number)?.toDouble() ?: return false
-        val endY = (args["endY"] as? Number)?.toDouble() ?: return false
-        val duration = (args["durationMs"] as? Number)?.toLong() ?: return false
+        val sessionId = values["sessionId"] as? String ?: return false
+        val sender = values["senderIdentity"] as? String ?: return false
+        val sequence = (values["sequence"] as? Number)?.toLong() ?: return false
+        val startX = (values["startX"] as? Number)?.toDouble() ?: return false
+        val startY = (values["startY"] as? Number)?.toDouble() ?: return false
+        val endX = (values["endX"] as? Number)?.toDouble() ?: return false
+        val endY = (values["endY"] as? Number)?.toDouble() ?: return false
+        val duration = (values["durationMs"] as? Number)?.toLong() ?: return false
         return service.dispatchSwipe(
             sessionId,
             sender,
