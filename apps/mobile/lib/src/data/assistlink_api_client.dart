@@ -132,6 +132,55 @@ class AssistLinkApiClient {
     await _request('POST', '/v1/calls/$callId/end');
   }
 
+  Future<AssistanceSession> createAssistanceSession(String callId) async {
+    final response = await _request('POST', '/v1/calls/$callId/assistance-sessions');
+    return AssistanceSession.fromJson(response['session'] as Map<String, dynamic>);
+  }
+
+  Future<AssistanceSnapshot?> assistanceSessionForCall(String callId) async {
+    final response = await _request('GET', '/v1/calls/$callId/assistance-sessions');
+    final session = response['session'];
+    if (session == null) return null;
+    return AssistanceSnapshot.fromJson(
+      session as Map<String, dynamic>,
+      response['controlRequests'] as List<dynamic>? ?? const [],
+    );
+  }
+
+  Future<AssistanceSnapshot> assistanceSession(String sessionId) async {
+    final response = await _request('GET', '/v1/assistance-sessions/$sessionId');
+    return AssistanceSnapshot.fromJson(
+      response['session'] as Map<String, dynamic>,
+      response['controlRequests'] as List<dynamic>? ?? const [],
+    );
+  }
+
+  Future<ControlRequest> requestControl(String sessionId) async {
+    final response = await _request(
+      'POST',
+      '/v1/assistance-sessions/$sessionId/control-requests',
+      body: {'capabilities': ['tap', 'swipe']},
+    );
+    return ControlRequest.fromJson(response['controlRequest'] as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>> approveControlRequest(String requestId) async {
+    final response = await _request('POST', '/v1/control-requests/$requestId/approve');
+    return response['controlGrant'] as Map<String, dynamic>;
+  }
+
+  Future<void> rejectControlRequest(String requestId) async {
+    await _request('POST', '/v1/control-requests/$requestId/reject');
+  }
+
+  Future<void> revokeControlRequest(String requestId) async {
+    await _request('POST', '/v1/control-requests/$requestId/revoke');
+  }
+
+  Future<void> endAssistanceSession(String sessionId) async {
+    await _request('POST', '/v1/assistance-sessions/$sessionId/end');
+  }
+
   Future<void> logout() async {
     final refresh = await _storage.read(key: _refreshKey);
     if (refresh != null) {
@@ -257,5 +306,72 @@ class IncomingCall {
         id: json['id'] as String,
         callerName: json['caller_name'] as String? ?? 'AssistLink user',
         status: json['status'] as String? ?? 'ringing',
+      );
+}
+
+
+class AssistanceSession {
+  const AssistanceSession({
+    required this.id,
+    required this.callId,
+    required this.hostId,
+    required this.helperId,
+    required this.status,
+  });
+
+  final String id;
+  final String callId;
+  final String hostId;
+  final String helperId;
+  final String status;
+
+  factory AssistanceSession.fromJson(Map<String, dynamic> json) => AssistanceSession(
+        id: json['id'] as String,
+        callId: json['call_id'] as String,
+        hostId: json['host_id'] as String,
+        helperId: json['helper_id'] as String,
+        status: json['status'] as String,
+      );
+}
+
+class ControlRequest {
+  const ControlRequest({
+    required this.id,
+    required this.status,
+    required this.capabilities,
+    required this.expiresAt,
+  });
+
+  final String id;
+  final String status;
+  final List<String> capabilities;
+  final DateTime expiresAt;
+
+  factory ControlRequest.fromJson(Map<String, dynamic> json) => ControlRequest(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        capabilities: (json['capabilities'] as List<dynamic>? ?? const []).whereType<String>().toList(),
+        expiresAt: DateTime.parse(json['expires_at'] as String),
+      );
+}
+
+class AssistanceSnapshot {
+  const AssistanceSnapshot({
+    required this.session,
+    required this.controlRequests,
+  });
+
+  final AssistanceSession session;
+  final List<ControlRequest> controlRequests;
+
+  factory AssistanceSnapshot.fromJson(
+    Map<String, dynamic> session,
+    List<dynamic> requests,
+  ) => AssistanceSnapshot(
+        session: AssistanceSession.fromJson(session),
+        controlRequests: requests
+            .whereType<Map<String, dynamic>>()
+            .map(ControlRequest.fromJson)
+            .toList(growable: false),
       );
 }
