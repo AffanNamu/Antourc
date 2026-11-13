@@ -78,7 +78,7 @@ class AssistanceSessionController extends ChangeNotifier {
   void _startPolling() {
     _pollTimer?.cancel();
     unawaited(refresh());
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => refresh());
+    _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => refresh());
   }
 
   Future<void> refresh() async {
