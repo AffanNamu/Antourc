@@ -5,16 +5,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
+import '../../data/assistlink_api_client.dart';
+import '../assistance/accessibility_disclosure_page.dart';
+import '../assistance/assistance_session_controller.dart';
 import 'live_kit_call_session.dart';
 
 class RoomCallPage extends StatefulWidget {
   const RoomCallPage({
+    required this.api,
+    required this.callId,
+    required this.currentUserId,
     required this.credentials,
     required this.peerLabel,
     this.onCallEnded,
     super.key,
   });
 
+  final AssistLinkApiClient api;
+  final String callId;
+  final String currentUserId;
   final LiveKitConnectionCredentials credentials;
   final String peerLabel;
   final Future<void> Function()? onCallEnded;
@@ -25,6 +34,8 @@ class RoomCallPage extends StatefulWidget {
 
 class _RoomCallPageState extends State<RoomCallPage> {
   late final LiveKitCallSession _session;
+  AssistanceSessionController? _assistance;
+  dynamic _roomListener;
 
   @override
   void initState() {
@@ -36,6 +47,21 @@ class _RoomCallPageState extends State<RoomCallPage> {
   Future<void> _connect() async {
     try {
       await _session.connect();
+      final room = _session.room;
+      if (room == null) throw StateError('LiveKit room was not created.');
+      _assistance = AssistanceSessionController(
+        api: widget.api,
+        callId: widget.callId,
+        currentUserId: widget.currentUserId,
+        room: room,
+      )..addListener(_refresh);
+      _roomListener = room.createListener()
+        ..on<DataReceivedEvent>((event) {
+          final controller = _assistance;
+          if (controller != null) unawaited(controller.handleDataReceived(event));
+        });
+      _assistance!.startAsHelper();
+      if (mounted) setState(() {});
     } catch (_) {
       if (mounted) setState(() {});
     }
@@ -45,9 +71,128 @@ class _RoomCallPageState extends State<RoomCallPage> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _startScreenShare() async {
+    await _session.startScreenShare();
+    try {
+      await _assistance?.startAsHost();
+    } catch (_) {
+      await _session.stopScreenShare();
+      rethrow;
+    }
+  }
+
+  Future<void> _stopScreenShare() async {
+    await _session.stopScreenShare();
+    await _assistance?.endHostSession();
+  }
+
+  Future<void> _approveControl() async {
+    try {
+      await _assistance?.approvePendingRequest();
+    } catch (error) {
+      if (!mounted) return;
+      final shouldSetup = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Remote assistance needs setup'),
+          content: Text(error.toString().replaceFirst('Bad state: ', '')),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Not now')),
+            FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Set up')),
+          ],
+        ),
+      );
+      if (shouldSetup == true && mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AccessibilityDisclosurePage()),
+        );
+      }
+    }
+  }
+
+  Future<void> _requestControl() async {
+    try {
+      await _assistance?.requestControl();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))),
+      );
+    }
+  }
+
+  Future<void> _rejectControl() async {
+    try {
+      await _assistance?.rejectPendingRequest();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _revokeControl() async {
+    try {
+      await _assistance?.revokeControl();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Widget _assistancePanel() {
+    final controller = _assistance!;
+    final snapshot = controller.snapshot;
+    final latest = controller.latestRequest;
+    if (snapshot == null) return const SizedBox.shrink();
+    if (controller.isHost) {
+      if (controller.hasPendingRequest) {
+        return _AssistancePanel(
+          title: 'Someone is requesting remote assistance',
+          detail: 'They can send basic taps and swipes only after you approve.',
+          actions: [
+            TextButton(onPressed: _rejectControl, child: const Text('Decline')),
+            FilledButton(onPressed: _approveControl, child: const Text('Approve')),
+          ],
+        );
+      }
+      if (controller.hostControlActive) {
+        return _AssistancePanel(
+          title: 'Remote assistance is active',
+          detail: 'The approved helper can tap and swipe. Revoke access whenever you want.',
+          actions: [FilledButton.tonal(onPressed: _revokeControl, child: const Text('Revoke access'))],
+        );
+      }
+      return const _AssistancePanel(
+        title: 'You are sharing your screen',
+        detail: 'No remote gestures are enabled. A helper must request access and you must approve it.',
+      );
+    }
+    if (controller.controlApproved) {
+      return const _AssistancePanel(
+        title: 'Remote assistance approved',
+        detail: 'Tap or swipe directly on the shared screen above to help.',
+      );
+    }
+    if (latest?.status == 'pending') {
+      return const _AssistancePanel(
+        title: 'Waiting for host approval',
+        detail: 'The phone owner must approve before your gestures can be sent.',
+      );
+    }
+    return _AssistancePanel(
+      title: 'Help with this phone',
+      detail: controller.notice ?? 'Request permission to tap and swipe on the shared screen.',
+      actions: [FilledButton(onPressed: controller.busy ? null : _requestControl, child: const Text('Request remote control'))],
+    );
+  }
+
   @override
   void dispose() {
     _session.removeListener(_refresh);
+    _assistance?.removeListener(_refresh);
+    _roomListener?.dispose();
+    final assistance = _assistance;
+    if (assistance != null) unawaited(assistance.close());
     unawaited(_session.close());
     super.dispose();
   }
@@ -56,12 +201,26 @@ class _RoomCallPageState extends State<RoomCallPage> {
   Widget build(BuildContext context) {
     final room = _session.room;
     final localParticipant = room?.localParticipant;
+    final canSendGestures = _assistance?.controlApproved == true;
     final participantTiles = <Widget>[
       if (localParticipant != null)
-        _ParticipantTile(participant: localParticipant, label: 'You'),
+        _ParticipantTile(participant: localParticipant, label: 'You', isLocal: true),
       if (room != null)
         for (final remote in room.remoteParticipants.values)
-          _ParticipantTile(participant: remote, label: remote.name),
+          _ParticipantTile(
+            participant: remote,
+            label: remote.name,
+            isLocal: false,
+            onScreenTap: canSendGestures ? _assistance!.sendTap : null,
+            onScreenSwipe: canSendGestures
+                ? (startX, startY, endX, endY) => _assistance!.sendSwipe(
+                      startX: startX,
+                      startY: startY,
+                      endX: endX,
+                      endY: endY,
+                    )
+                : null,
+          ),
     ];
 
     return Scaffold(
@@ -108,6 +267,7 @@ class _RoomCallPageState extends State<RoomCallPage> {
                 padding: EdgeInsets.only(bottom: 8),
                 child: _SharingBanner(),
               ),
+            if (_assistance != null) _assistancePanel(),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: Wrap(
@@ -136,9 +296,7 @@ class _RoomCallPageState extends State<RoomCallPage> {
                     label: _session.sharingScreen ? 'Stop sharing' : 'Share screen',
                     active: _session.sharingScreen,
                     onPressed: () => _runAction(
-                      _session.sharingScreen
-                          ? _session.stopScreenShare
-                          : _session.startScreenShare,
+                      _session.sharingScreen ? _stopScreenShare : _startScreenShare,
                     ),
                   ),
                   _CallAction(
@@ -149,6 +307,8 @@ class _RoomCallPageState extends State<RoomCallPage> {
                     onPressed: () async {
                       final navigator = Navigator.of(context);
                       await _session.disconnect();
+                      final assistance = _assistance;
+                      if (assistance != null) await assistance.close();
                       try {
                         await widget.onCallEnded?.call();
                       } catch (_) {
