@@ -286,7 +286,9 @@ class AssistanceSessionController extends ChangeNotifier {
 
     final latest = latestRequest;
     if (latest == null || latest.status != 'approved' ||
-        !latest.expiresAt.isAfter(DateTime.now())) return;
+        !latest.expiresAt.isAfter(DateTime.now())) {
+      return;
+    }
 
     try {
       final payload = jsonDecode(utf8.decode(event.data)) as Map<String, dynamic>;
