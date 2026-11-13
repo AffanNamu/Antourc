@@ -82,6 +82,7 @@ class _HomePageState extends State<HomePage> {
           builder: (_) => CallConnectionPage(
             api: widget.api,
             callId: callId,
+            currentUserId: widget.userId,
             peerLabel: email,
             isIncoming: false,
           ),
@@ -105,6 +106,7 @@ class _HomePageState extends State<HomePage> {
         builder: (_) => CallConnectionPage(
           api: widget.api,
           callId: call.id,
+          currentUserId: widget.userId,
           peerLabel: call.callerName,
           isIncoming: true,
         ),
