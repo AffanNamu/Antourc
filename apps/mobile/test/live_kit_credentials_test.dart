@@ -21,6 +21,20 @@ void main() {
       expect(credentials.validate, throwsArgumentError);
     });
 
+    test('allows an insecure websocket only for localhost development', () {
+      const local = LiveKitConnectionCredentials(
+        serverUrl: 'ws://127.0.0.1:7880',
+        accessToken: 'local-development-token',
+      );
+      const remote = LiveKitConnectionCredentials(
+        serverUrl: 'ws://media.example.com',
+        accessToken: 'token',
+      );
+
+      expect(local.validate, returnsNormally);
+      expect(remote.validate, throwsArgumentError);
+    });
+
     test('rejects an empty token', () {
       const credentials = LiveKitConnectionCredentials(
         serverUrl: 'wss://example.livekit.cloud',
