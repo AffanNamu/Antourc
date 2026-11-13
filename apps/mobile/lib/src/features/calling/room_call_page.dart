@@ -339,25 +339,52 @@ class _RoomCallPageState extends State<RoomCallPage> {
   }
 }
 
-class _ParticipantTile extends StatelessWidget {
-  const _ParticipantTile({required this.participant, required this.label});
+class _ParticipantTile extends StatefulWidget {
+  const _ParticipantTile({
+    required this.participant,
+    required this.label,
+    required this.isLocal,
+    this.onScreenTap,
+    this.onScreenSwipe,
+  });
 
   final dynamic participant;
   final String label;
+  final bool isLocal;
+  final Future<void> Function(double x, double y)? onScreenTap;
+  final Future<void> Function(double startX, double startY, double endX, double endY)? onScreenSwipe;
+
+  @override
+  State<_ParticipantTile> createState() => _ParticipantTileState();
+}
+
+class _ParticipantTileState extends State<_ParticipantTile> {
+  Offset? _swipeStart;
+  Offset? _swipeCurrent;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: participant,
+      animation: widget.participant,
       builder: (context, _) {
-        VideoTrack? videoTrack;
-        for (final publication in participant.videoTrackPublications) {
+        VideoTrack? screenTrack;
+        VideoTrack? cameraTrack;
+        for (final publication in widget.participant.videoTrackPublications) {
           final candidate = publication.track;
-          if (publication.subscribed && !publication.muted && candidate is VideoTrack) {
-            videoTrack = candidate;
-            break;
+          if (candidate is VideoTrack && !publication.muted) {
+            if (publication.isScreenShare) {
+              screenTrack = candidate;
+            } else {
+              cameraTrack = candidate;
+            }
           }
         }
+        final track = screenTrack ?? cameraTrack;
+        final interactive = screenTrack != null &&
+            !widget.isLocal &&
+            widget.onScreenTap != null &&
+            widget.onScreenSwipe != null;
+
         return ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: Stack(
@@ -365,11 +392,50 @@ class _ParticipantTile extends StatelessWidget {
             children: [
               Container(
                 color: const Color(0xFF151D2A),
-                child: videoTrack == null
+                child: track == null
                     ? const Center(
                         child: Icon(Icons.person_rounded, size: 64, color: Color(0xFF71819A)),
                       )
-                    : VideoTrackRenderer(videoTrack),
+                    : interactive
+                        ? LayoutBuilder(
+                            builder: (context, constraints) => GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTapUp: (details) {
+                                final width = constraints.maxWidth;
+                                final height = constraints.maxHeight;
+                                if (width <= 0 || height <= 0) return;
+                                unawaited(widget.onScreenTap!(
+                                  details.localPosition.dx / width,
+                                  details.localPosition.dy / height,
+                                ));
+                              },
+                              onPanStart: (details) {
+                                _swipeStart = details.localPosition;
+                                _swipeCurrent = details.localPosition;
+                              },
+                              onPanUpdate: (details) {
+                                _swipeCurrent = details.localPosition;
+                              },
+                              onPanEnd: (_) {
+                                final start = _swipeStart;
+                                final end = _swipeCurrent;
+                                final width = constraints.maxWidth;
+                                final height = constraints.maxHeight;
+                                _swipeStart = null;
+                                _swipeCurrent = null;
+                                if (start == null || end == null || width <= 0 || height <= 0) return;
+                                if ((end - start).distance < 18) return;
+                                unawaited(widget.onScreenSwipe!(
+                                  start.dx / width,
+                                  start.dy / height,
+                                  end.dx / width,
+                                  end.dy / height,
+                                ));
+                              },
+                              child: SizedBox.expand(child: VideoTrackRenderer(track)),
+                            ),
+                          )
+                        : VideoTrackRenderer(track),
               ),
               Positioned(
                 left: 12,
@@ -381,16 +447,60 @@ class _ParticipantTile extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                    child: Text(
+                      screenTrack != null ? '${widget.label} · Screen' : widget.label,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
               ),
+              if (interactive)
+                const Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Icon(Icons.touch_app_rounded, color: Colors.white70, size: 20),
+                ),
             ],
           ),
         );
       },
     );
   }
+}
+
+class _AssistancePanel extends StatelessWidget {
+  const _AssistancePanel({
+    required this.title,
+    required this.detail,
+    this.actions = const [],
+  });
+
+  final String title;
+  final String detail;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF172131),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF2B3B52)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text(detail, style: const TextStyle(color: Colors.white70, height: 1.35, fontSize: 12)),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, children: actions),
+            ],
+          ],
+        ),
+      );
 }
 
 class _ConnectionLabel extends StatelessWidget {
