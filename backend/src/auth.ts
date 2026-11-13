@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from './db.js';
 import { env } from './env.js';
@@ -11,14 +11,8 @@ const registerSchema = z.object({
   displayName: z.string().trim().min(2).max(60),
   password: z.string().min(10).max(128),
 });
-const verifySchema = z.object({
-  email: z.string().email(),
-  code: z.string().regex(/^\d{6}$/),
-});
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1).max(128),
-});
+const verifySchema = z.object({ email: z.string().email(), code: z.string().regex(/^\d{6}$/) });
+const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1).max(128) });
 const refreshSchema = z.object({ refreshToken: z.string().min(32).max(256) });
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
@@ -68,12 +62,14 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post('/v1/auth/register', async (request, reply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request', details: parsed.error.flatten() });
+    if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASSWORD) {
+      return reply.code(503).send({ error: 'email_verification_unavailable' });
+    }
 
     const email = parsed.data.email.trim().toLowerCase();
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
     const code = String(randomInt(100_000, 1_000_000));
     const client = await db.connect();
-
     try {
       await client.query('BEGIN');
       const inserted = await client.query(
@@ -86,14 +82,11 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
          VALUES ($1, $2, now() + interval '10 minutes')`,
         [userId, hashOtp(code)],
       );
-      await client.query('COMMIT');
       await sendVerificationEmail(email, code);
+      await client.query('COMMIT');
       return reply.code(202).send({ status: 'verification_required' });
     } catch (error) {
       await client.query('ROLLBACK').catch(() => undefined);
-      if (error instanceof Error && error.message.includes('Email verification is not configured')) {
-        return reply.code(503).send({ error: 'email_verification_unavailable' });
-      }
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') {
         return reply.code(409).send({ error: 'account_already_exists' });
       }
@@ -161,7 +154,6 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       return reply.code(401).send({ error: 'invalid_credentials' });
     }
     if (!user.email_verified_at) return reply.code(403).send({ error: 'email_verification_required' });
-
     const refreshToken = createRefreshToken();
     await saveRefreshToken(user.id as string, refreshToken);
     return reply.send({
@@ -176,13 +168,12 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   app.post('/v1/auth/refresh', async (request, reply) => {
     const parsed = refreshSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: 'invalid_request' });
-    const oldHash = hashToken(parsed.data.refreshToken);
     const client = await db.connect();
     try {
       await client.query('BEGIN');
       const result = await client.query(
         'SELECT id, user_id FROM refresh_sessions WHERE token_hash = $1 AND expires_at > now() FOR UPDATE',
-        [oldHash],
+        [hashToken(parsed.data.refreshToken)],
       );
       const session = result.rows[0];
       if (!session) {
@@ -221,12 +212,4 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     );
     return reply.code(204).send();
   });
-}
-
-export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  try {
-    await request.jwtVerify();
-  } catch {
-    await reply.code(401).send({ error: 'unauthorized' });
-  }
 }
