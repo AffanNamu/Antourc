@@ -2,9 +2,9 @@ import 'package:flutter/services.dart';
 
 /// Typed boundary for host-side Android capabilities.
 ///
-/// Methods intentionally fail closed until their native implementations and
-/// permission flows are connected and device-tested. UI must not infer consent
-/// or service availability from a button press.
+/// Methods fail closed until their native implementations and permission
+/// flows are connected and device-tested. UI must not infer consent or service
+/// availability from a button press.
 class RemoteAssistancePlatform {
   RemoteAssistancePlatform({MethodChannel? channel})
       : _channel = channel ?? const MethodChannel('app.assistlink/host_engine');
@@ -16,9 +16,9 @@ class RemoteAssistancePlatform {
       final result = await _channel.invokeMapMethod<String, Object?>('getStatus');
       return HostEngineStatus.fromMap(result);
     } on MissingPluginException {
-      return HostEngineStatus.unavailable;
+      return const HostEngineStatus.unavailable();
     } on PlatformException {
-      return HostEngineStatus.unavailable;
+      return const HostEngineStatus.unavailable();
     }
   }
 }
