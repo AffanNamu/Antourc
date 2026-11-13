@@ -28,9 +28,7 @@ class LiveKitConnectionCredentials {
 }
 
 /// Owns one LiveKit room and the local media lifecycle for a one-to-one call.
-///
-/// The backend must authorize room membership and issue short-lived tokens
-/// before this class is constructed. UI state is never treated as consent.
+/// The backend must authorize room membership and issue short-lived tokens.
 class LiveKitCallSession extends ChangeNotifier {
   LiveKitCallSession(this.credentials);
 
@@ -42,6 +40,7 @@ class LiveKitCallSession extends ChangeNotifier {
   bool _microphoneEnabled = false;
   bool _cameraEnabled = false;
   String? _failure;
+  bool _closed = false;
 
   Room? get room => _room;
   bool get connecting => _connecting;
@@ -52,7 +51,7 @@ class LiveKitCallSession extends ChangeNotifier {
   String? get failure => _failure;
 
   Future<void> connect() async {
-    if (_connected || _connecting) return;
+    if (_connected || _connecting || _closed) return;
     _connecting = true;
     _failure = null;
     notifyListeners();
@@ -71,10 +70,7 @@ class LiveKitCallSession extends ChangeNotifier {
       _room = room;
       room.addListener(_onRoomChanged);
 
-      await room.connect(
-        credentials.serverUrl,
-        credentials.accessToken,
-      );
+      await room.connect(credentials.serverUrl, credentials.accessToken);
 
       if (microphone.isGranted) {
         await room.localParticipant.setMicrophoneEnabled(true);
@@ -92,7 +88,7 @@ class LiveKitCallSession extends ChangeNotifier {
       rethrow;
     } finally {
       _connecting = false;
-      notifyListeners();
+      if (!_closed) notifyListeners();
     }
   }
 
@@ -125,11 +121,10 @@ class LiveKitCallSession extends ChangeNotifier {
   }
 
   /// Requests Android's OS capture consent before publishing a screen track.
-  /// The foreground notification remains visible while the capture is active.
+  /// A foreground notification remains visible while capture is active.
   Future<void> startScreenShare() async {
     final room = _requireRoom();
     if (_sharingScreen) return;
-
     if (defaultTargetPlatform != TargetPlatform.android) {
       throw UnsupportedError('Screen sharing is currently implemented for Android only.');
     }
@@ -176,7 +171,7 @@ class LiveKitCallSession extends ChangeNotifier {
       if (FlutterBackground.isBackgroundExecutionEnabled) {
         await FlutterBackground.disableBackgroundExecution();
       }
-      notifyListeners();
+      if (!_closed) notifyListeners();
     }
   }
 
@@ -188,8 +183,15 @@ class LiveKitCallSession extends ChangeNotifier {
       _connected = false;
       _microphoneEnabled = false;
       _cameraEnabled = false;
-      notifyListeners();
+      if (!_closed) notifyListeners();
     }
+  }
+
+  Future<void> close() async {
+    if (_closed) return;
+    await disconnect();
+    _closed = true;
+    super.dispose();
   }
 
   Room _requireRoom() {
@@ -200,7 +202,9 @@ class LiveKitCallSession extends ChangeNotifier {
     return current;
   }
 
-  void _onRoomChanged() => notifyListeners();
+  void _onRoomChanged() {
+    if (!_closed) notifyListeners();
+  }
 
   Future<void> _disposeRoom() async {
     final current = _room;
@@ -214,11 +218,5 @@ class LiveKitCallSession extends ChangeNotifier {
   String _safeMessage(Object error) {
     final message = error.toString();
     return message.length > 240 ? message.substring(0, 240) : message;
-  }
-
-  @override
-  Future<void> dispose() async {
-    await disconnect();
-    super.dispose();
   }
 }
