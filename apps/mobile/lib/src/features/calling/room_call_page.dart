@@ -372,11 +372,13 @@ class _ParticipantTileState extends State<_ParticipantTile> {
       builder: (context, _) {
         VideoTrack? screenTrack;
         VideoTrack? cameraTrack;
+        VideoDimensions? screenDimensions;
         for (final publication in widget.participant.videoTrackPublications) {
           final candidate = publication.track;
           if (candidate is VideoTrack && !publication.muted) {
             if (publication.isScreenShare) {
               screenTrack = candidate;
+              screenDimensions = publication.dimensions;
             } else {
               cameraTrack = candidate;
             }
@@ -401,42 +403,54 @@ class _ParticipantTileState extends State<_ParticipantTile> {
                       )
                     : interactive
                         ? LayoutBuilder(
-                            builder: (context, constraints) => GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTapUp: (details) {
+                            builder: (context, constraints) {
+                              Offset? normalize(Offset position) {
                                 final width = constraints.maxWidth;
                                 final height = constraints.maxHeight;
-                                if (width <= 0 || height <= 0) return;
-                                unawaited(widget.onScreenTap!(
-                                  details.localPosition.dx / width,
-                                  details.localPosition.dy / height,
-                                ));
-                              },
-                              onPanStart: (details) {
-                                _swipeStart = details.localPosition;
-                                _swipeCurrent = details.localPosition;
-                              },
-                              onPanUpdate: (details) {
-                                _swipeCurrent = details.localPosition;
-                              },
-                              onPanEnd: (_) {
-                                final start = _swipeStart;
-                                final end = _swipeCurrent;
-                                final width = constraints.maxWidth;
-                                final height = constraints.maxHeight;
-                                _swipeStart = null;
-                                _swipeCurrent = null;
-                                if (start == null || end == null || width <= 0 || height <= 0) return;
-                                if ((end - start).distance < 18) return;
-                                unawaited(widget.onScreenSwipe!(
-                                  start.dx / width,
-                                  start.dy / height,
-                                  end.dx / width,
-                                  end.dy / height,
-                                ));
-                              },
-                              child: SizedBox.expand(child: VideoTrackRenderer(track)),
-                            ),
+                                if (width <= 0 || height <= 0) return null;
+                                final sourceWidth = screenDimensions?.width.toDouble() ?? width;
+                                final sourceHeight = screenDimensions?.height.toDouble() ?? height;
+                                if (sourceWidth <= 0 || sourceHeight <= 0) return null;
+                                final sourceAspect = sourceWidth / sourceHeight;
+                                final boxAspect = width / height;
+                                final contentWidth = boxAspect > sourceAspect ? height * sourceAspect : width;
+                                final contentHeight = boxAspect > sourceAspect ? height : width / sourceAspect;
+                                final offsetX = (width - contentWidth) / 2;
+                                final offsetY = (height - contentHeight) / 2;
+                                if (position.dx < offsetX || position.dx > offsetX + contentWidth ||
+                                    position.dy < offsetY || position.dy > offsetY + contentHeight) return null;
+                                return Offset((position.dx - offsetX) / contentWidth,
+                                    (position.dy - offsetY) / contentHeight);
+                              }
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTapUp: (details) {
+                                  final point = normalize(details.localPosition);
+                                  if (point == null) return;
+                                  unawaited(widget.onScreenTap!(point.dx, point.dy));
+                                },
+                                onPanStart: (details) {
+                                  _swipeStart = details.localPosition;
+                                  _swipeCurrent = details.localPosition;
+                                },
+                                onPanUpdate: (details) { _swipeCurrent = details.localPosition; },
+                                onPanEnd: (_) {
+                                  final start = _swipeStart;
+                                  final end = _swipeCurrent;
+                                  _swipeStart = null;
+                                  _swipeCurrent = null;
+                                  if (start == null || end == null || (end - start).distance < 18) return;
+                                  final normalizedStart = normalize(start);
+                                  final normalizedEnd = normalize(end);
+                                  if (normalizedStart == null || normalizedEnd == null) return;
+                                  unawaited(widget.onScreenSwipe!(normalizedStart.dx, normalizedStart.dy,
+                                      normalizedEnd.dx, normalizedEnd.dy));
+                                },
+                                child: SizedBox.expand(
+                                  child: VideoTrackRenderer(track, fit: VideoViewFit.contain),
+                                ),
+                              );
+                            },
                           )
                         : VideoTrackRenderer(track),
               ),
