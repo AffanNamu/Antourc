@@ -3,7 +3,7 @@
 ## Prerequisites
 - Flutter stable and Dart versions compatible with project constraints.
 - Android Studio and Android SDK.
-- JDK 17 for the current Android Gradle Plugin configuration.
+- JDK 17, Android Gradle Plugin 9.1.1, Gradle 9.3.1 and Kotlin Gradle Plugin 2.2.10.
 - Two physical Android devices for media/projection testing.
 - Backend runtime and PostgreSQL for integrated environments.
 
