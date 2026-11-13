@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistlink_accessibility_service_description">Allows a person you have explicitly approved in an active AssistLink support session to send basic taps and swipes. You can stop sharing or revoke assistance at any time.</string>
+</resources>
