@@ -182,18 +182,39 @@ class AssistLinkApiClient {
   }
 
   Future<void> logout() async {
-    final refresh = await _storage.read(key: _refreshKey);
-    if (refresh != null) {
-      try {
-        await _request(
-          'POST',
-          '/v1/auth/logout',
-          body: {'refreshToken': refresh},
-        );
-      } finally {
-        await _clearTokens();
+    try {
+      var access = await _storage.read(key: _accessKey);
+      var refresh = await _storage.read(key: _refreshKey);
+      if (refresh != null) {
+        if (access == null) {
+          await _refreshAccessToken();
+          access = await _storage.read(key: _accessKey);
+          refresh = await _storage.read(key: _refreshKey);
+        }
+        if (access != null && refresh != null) {
+          var response = await _sendRaw(
+            'POST',
+            '/v1/auth/logout',
+            body: {'refreshToken': refresh},
+            accessToken: access,
+          );
+          if (response.statusCode == 401 && await _refreshAccessToken()) {
+            access = await _storage.read(key: _accessKey);
+            refresh = await _storage.read(key: _refreshKey);
+            if (access != null && refresh != null) {
+              response = await _sendRaw(
+                'POST',
+                '/v1/auth/logout',
+                body: {'refreshToken': refresh},
+                accessToken: access,
+              );
+            }
+          }
+        }
       }
-    } else {
+    } catch (_) {
+      // Local credentials are still cleared when the network is unavailable.
+    } finally {
       await _clearTokens();
     }
   }
