@@ -1,15 +1,12 @@
 import 'package:assistlink/src/app.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  testWidgets('home explains the real consent model and honest build status', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: AssistLinkApp()));
+  testWidgets('app fails closed when no backend URL is configured', (tester) async {
+    await tester.pumpWidget(const AssistLinkApp());
 
-    expect(find.text('AssistLink'), findsOneWidget);
-    expect(find.text('Remote help,\nwith permission.'), findsOneWidget);
-    expect(find.text('New call'), findsOneWidget);
-    expect(find.text('Share screen during a call'), findsOneWidget);
-    expect(find.textContaining('not connected yet'), findsOneWidget);
+    expect(find.text('Connect AssistLink to its server'), findsOneWidget);
+    expect(find.textContaining('ASSISTLINK_API_BASE_URL'), findsOneWidget);
+    expect(find.textContaining('does not ship with a hardcoded server'), findsOneWidget);
   });
 }
