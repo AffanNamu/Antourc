@@ -6,7 +6,6 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 .metadata
-*.lock
 
 # Android / Gradle
 .gradle/
