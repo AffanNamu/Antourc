@@ -35,3 +35,9 @@ jobs:
         run: flutter test --no-pub
       - name: Build Android debug APK
         run: flutter build apk --debug --no-pub
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: assistlink-debug-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
