@@ -6,6 +6,7 @@ import rateLimit from '@fastify/rate-limit';
 import { registerAssistanceRoutes } from './assistance.js';
 import { registerAuthRoutes } from './auth.js';
 import { registerCallRoutes } from './calls.js';
+import { registerProfileRoutes } from './profile.js';
 import { db } from './db.js';
 import { env } from './env.js';
 
@@ -45,6 +46,7 @@ app.get('/health/ready', async (_request, reply) => {
 });
 
 await registerAuthRoutes(app);
+await registerProfileRoutes(app);
 await registerCallRoutes(app);
 await registerAssistanceRoutes(app);
 
