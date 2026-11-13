@@ -139,24 +139,25 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
     const callId = idSchema.safeParse((request.params as { callId?: string }).callId);
     if (!callId.success) return reply.code(400).send({ error: 'invalid_call_id' });
     const result = await db.query(
-      `UPDATE calls SET status = 'ended', ended_at = now()
-       WHERE id = $1 AND (caller_id = $2 OR callee_id = $2)
-         AND status IN ('ringing', 'accepted')
-       RETURNING id, status`,
+      `WITH ended_call AS (
+         UPDATE calls SET status = 'ended', ended_at = now()
+         WHERE id = $1 AND (caller_id = $2 OR callee_id = $2)
+           AND status IN ('ringing', 'accepted')
+         RETURNING id, status
+       ), ended_sessions AS (
+         UPDATE assistance_sessions SET status = 'ended', ended_at = now()
+         WHERE call_id IN (SELECT id FROM ended_call) AND status = 'active'
+         RETURNING id
+       ), revoked_requests AS (
+         UPDATE control_requests SET status = 'revoked', revoked_at = now()
+         WHERE session_id IN (SELECT id FROM ended_sessions)
+           AND status IN ('pending', 'approved')
+         RETURNING id
+       )
+       SELECT id, status FROM ended_call`,
       [callId.data, request.user.sub],
     );
     if (!result.rowCount) return reply.code(404).send({ error: 'call_not_available' });
-    await db.query(
-      `WITH ended_sessions AS (
-         UPDATE assistance_sessions SET status = 'ended', ended_at = now()
-         WHERE call_id = $1 AND status = 'active'
-         RETURNING id
-       )
-       UPDATE control_requests SET status = 'revoked', revoked_at = now()
-       WHERE session_id IN (SELECT id FROM ended_sessions)
-         AND status IN ('pending', 'approved')`,
-      [callId.data],
-    );
     return reply.send({ call: result.rows[0], assistanceRevoked: true });
   });
 }
