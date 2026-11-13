@@ -89,7 +89,9 @@ class AssistanceSessionController extends ChangeNotifier {
       final callStatus = await api.callStatus(callId);
       if (callStatus != 'accepted') {
         _pollTimer?.cancel();
-        if (isHost && _snapshot != null) await endHostSession();
+        if (isHost && _snapshot != null) {
+          await endHostSession();
+        }
         return;
       }
       final next = await api.assistanceSessionForCall(callId);
