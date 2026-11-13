@@ -100,7 +100,9 @@ class _RoomCallPageState extends State<RoomCallPage> {
     try {
       await _assistance?.approvePendingRequest();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       final shouldSetup = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -124,7 +126,9 @@ class _RoomCallPageState extends State<RoomCallPage> {
     try {
       await _assistance?.requestControl();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))),
       );
@@ -135,7 +139,9 @@ class _RoomCallPageState extends State<RoomCallPage> {
     try {
       await _assistance?.rejectPendingRequest();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
@@ -144,7 +150,9 @@ class _RoomCallPageState extends State<RoomCallPage> {
     try {
       await _assistance?.revokeControl();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
@@ -330,7 +338,9 @@ class _RoomCallPageState extends State<RoomCallPage> {
   }
 
   Future<void> _finishCall() async {
-    if (_ending) return;
+    if (_ending) {
+      return;
+    }
     _ending = true;
     final navigator = Navigator.of(context);
     try {
@@ -353,7 +363,9 @@ class _RoomCallPageState extends State<RoomCallPage> {
     try {
       await action();
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       messenger.showSnackBar(
         SnackBar(content: Text(error.toString().replaceFirst('Bad state: ', ''))),
       );
@@ -449,7 +461,9 @@ class _ParticipantTileState extends State<_ParticipantTile> {
                                 behavior: HitTestBehavior.opaque,
                                 onTapUp: (details) {
                                   final point = normalize(details.localPosition);
-                                  if (point == null) return;
+                                  if (point == null) {
+                                    return;
+                                  }
                                   unawaited(widget.onScreenTap!(point.dx, point.dy));
                                 },
                                 onPanStart: (details) {
@@ -462,10 +476,14 @@ class _ParticipantTileState extends State<_ParticipantTile> {
                                   final end = _swipeCurrent;
                                   _swipeStart = null;
                                   _swipeCurrent = null;
-                                  if (start == null || end == null || (end - start).distance < 18) return;
+                                  if (start == null || end == null || (end - start).distance < 18) {
+                                    return;
+                                  }
                                   final normalizedStart = normalize(start);
                                   final normalizedEnd = normalize(end);
-                                  if (normalizedStart == null || normalizedEnd == null) return;
+                                  if (normalizedStart == null || normalizedEnd == null) {
+                                    return;
+                                  }
                                   unawaited(widget.onScreenSwipe!(normalizedStart.dx, normalizedStart.dy,
                                       normalizedEnd.dx, normalizedEnd.dy));
                                 },
