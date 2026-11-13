@@ -82,6 +82,12 @@ class AssistanceSessionController extends ChangeNotifier {
   Future<void> refresh() async {
     if (_closed || _busy) return;
     try {
+      final callStatus = await api.callStatus(callId);
+      if (callStatus != 'accepted') {
+        _pollTimer?.cancel();
+        if (isHost && _snapshot != null) await endHostSession();
+        return;
+      }
       final next = await api.assistanceSessionForCall(callId);
       if (_closed) return;
       _snapshot = next;
