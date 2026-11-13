@@ -246,7 +246,7 @@ class AssistanceSessionController extends ChangeNotifier {
   Future<void> handleDataReceived(DataReceivedEvent event) async {
     final current = _snapshot;
     if (event.topic != controlTopic || current == null || !isHost) return;
-    if (event.participantIdentity != current.session.helperId) return;
+    if ((event.participant?.identity ?? '') != current.session.helperId) return;
 
     final latest = latestRequest;
     if (latest == null || latest.status != 'approved' ||
