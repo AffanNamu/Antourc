@@ -18,6 +18,28 @@ permissions:
 jobs:
   typecheck:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: assistlink
+          POSTGRES_USER: assistlink
+          POSTGRES_PASSWORD: assistlink
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U assistlink -d assistlink"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://assistlink:assistlink@localhost:5432/assistlink
+      ACCESS_TOKEN_SECRET: test-access-token-secret-at-least-32-characters
+      OTP_HMAC_SECRET: test-otp-hmac-secret-at-least-32-characters
+      LIVEKIT_URL: wss://example.livekit.cloud
+      LIVEKIT_API_KEY: test-key
+      LIVEKIT_API_SECRET: test-secret
     defaults:
       run:
         working-directory: backend
@@ -34,3 +56,5 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: Apply database migrations
+        run: npm run db:migrate
