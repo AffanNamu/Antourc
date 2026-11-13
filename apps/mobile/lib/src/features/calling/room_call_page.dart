@@ -453,7 +453,9 @@ class _ParticipantTileState extends State<_ParticipantTile> {
                                 final offsetX = (width - contentWidth) / 2;
                                 final offsetY = (height - contentHeight) / 2;
                                 if (position.dx < offsetX || position.dx > offsetX + contentWidth ||
-                                    position.dy < offsetY || position.dy > offsetY + contentHeight) return null;
+                                    position.dy < offsetY || position.dy > offsetY + contentHeight) {
+                                  return null;
+                                }
                                 return Offset((position.dx - offsetX) / contentWidth,
                                     (position.dy - offsetY) / contentHeight);
                               }
