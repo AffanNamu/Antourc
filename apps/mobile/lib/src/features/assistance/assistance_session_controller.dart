@@ -85,9 +85,9 @@ class AssistanceSessionController extends ChangeNotifier {
       final next = await api.assistanceSessionForCall(callId);
       if (_closed) return;
       _snapshot = next;
-      if (next == null || next.session.status != 'active') {
+      if (next != null && next.session.status != 'active') {
         _pollTimer?.cancel();
-      } else if (next.session.hostId == currentUserId) {
+      } else if (next != null && next.session.hostId == currentUserId) {
         final local = room.localParticipant;
         final sharing = local?.videoTrackPublications.any(
               (publication) => publication.isScreenShare && publication.track != null,
