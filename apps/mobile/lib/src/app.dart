@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'features/home/home_page.dart';
+import 'data/assistlink_api_client.dart';
+import 'features/auth/auth_gate.dart';
 
 class AssistLinkApp extends StatelessWidget {
   const AssistLinkApp({super.key});
@@ -29,7 +30,7 @@ class AssistLinkApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomePage(),
+      home: AuthGate(api: AssistLinkApiClient()),
     );
   }
 }
