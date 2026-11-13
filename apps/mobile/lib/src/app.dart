@@ -20,7 +20,7 @@ class AssistLinkApp extends StatelessWidget {
           surface: const Color(0xFF10141D),
         ),
         scaffoldBackgroundColor: const Color(0xFF0A0D14),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: const Color(0xFF141B27),
           elevation: 0,
           shape: RoundedRectangleBorder(
