@@ -9,11 +9,13 @@ class RoomCallPage extends StatefulWidget {
   const RoomCallPage({
     required this.credentials,
     required this.peerLabel,
+    this.onCallEnded,
     super.key,
   });
 
   final LiveKitConnectionCredentials credentials;
   final String peerLabel;
+  final Future<void> Function()? onCallEnded;
 
   @override
   State<RoomCallPage> createState() => _RoomCallPageState();
@@ -144,6 +146,11 @@ class _RoomCallPageState extends State<RoomCallPage> {
                     destructive: true,
                     onPressed: () async {
                       await _session.disconnect();
+                      try {
+                        await widget.onCallEnded?.call();
+                      } catch (_) {
+                        // Local media is already stopped; server cleanup can expire the call.
+                      }
                       if (mounted) Navigator.of(context).pop();
                     },
                   ),
