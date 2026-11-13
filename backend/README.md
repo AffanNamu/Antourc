@@ -1,6 +1,6 @@
 # AssistLink Backend
 
-Fastify/TypeScript API for verified accounts, refresh-token rotation, one-to-one call signaling and short-lived LiveKit room credentials.
+Fastify/TypeScript API for verified accounts, refresh-token rotation, one-to-one call signaling, LiveKit credentials and host-approved assistance grants.
 
 ## Local setup
 
@@ -12,7 +12,7 @@ Fastify/TypeScript API for verified accounts, refresh-token rotation, one-to-one
 6. Run `npm run db:migrate`.
 7. Run `npm run dev`.
 
-The API refuses registration until SMTP is configured because accounts must verify their email before login. LiveKit API secrets remain server-side only.
+Registration is disabled until SMTP is configured. Accounts must verify their email before login. LiveKit API secrets remain server-side only.
 
 ## Authentication
 
@@ -32,8 +32,19 @@ The API refuses registration until SMTP is configured because accounts must veri
 - `POST /v1/calls/:callId/token`
 - `POST /v1/calls/:callId/end`
 
-Every call endpoint requires a bearer access token. LiveKit room credentials are only issued to a verified participant after the call is accepted. Tokens expire after five minutes and are room-scoped.
+Every call endpoint requires a bearer access token. LiveKit room credentials are issued only to a verified participant after the call is accepted. Tokens expire after five minutes and are room-scoped.
+
+## Assistance consent API
+
+- `POST /v1/calls/:callId/assistance-sessions` — the participant who is sharing their screen becomes the host.
+- `GET /v1/assistance-sessions/:sessionId` — either participant can inspect the session.
+- `POST /v1/assistance-sessions/:sessionId/control-requests` — helper requests only the explicitly listed gesture capabilities.
+- `POST /v1/control-requests/:requestId/approve` — host approves a pending request; the grant expires after five minutes.
+- `POST /v1/control-requests/:requestId/revoke` — host revokes an active grant.
+- `POST /v1/assistance-sessions/:sessionId/end` — host ends assistance and revokes outstanding grants.
+
+These endpoints persist authorization state. They do not themselves inject touch events; the Android host must independently verify the active grant and local consent for every gesture before any command is executed.
 
 ## Production requirements still outstanding
 
-Configure TLS termination, managed PostgreSQL backups, SMTP deliverability, LiveKit/TURN capacity, monitoring/alerting, abuse reporting, account recovery, and security review before public launch. Incoming-call push delivery and rate-limit persistence are not yet implemented; the client must poll the incoming-call endpoint for the current internal testing milestone.
+Configure TLS termination, managed PostgreSQL backups, SMTP deliverability, LiveKit/TURN capacity, monitoring/alerting, abuse reporting, account recovery, push delivery for incoming calls, rate-limit persistence and independent security review before public launch. The internal client milestone uses incoming-call polling until push delivery is implemented.
